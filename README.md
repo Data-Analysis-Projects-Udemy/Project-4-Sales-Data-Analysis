@@ -1,12 +1,18 @@
 # Project 4 Sales Data Analysis
 
-# a.- Preparar los datos
-2
-# b.- Analizando las ventas mensuales
-# 3. ¿Cuál es el mejor mes para la venta?
+## a.- Preparar los datos
+1. [Combine 12 meses de datos de ventas en un solo archivo csv](#schema1)
+2. [Limpieza y formateo de datos](#schema2)
+## b.- Analizando las ventas mensuales
+3. [¿Cuál es el mejor mes para la venta?](#schema3)
 
+## c.- Analizando el pedido máximo 
+4. [¿Qué ciudad tiene el pedido máximo?](#schema4)
+5. [¿A qué hora debemos mostrar anuncios para maximizar la compra de productos?](#schema5)
 
-1. [Enlaces ](#schema1)
+## d.- Analizando los productos más vendidos
+6. [¿Qué producto se vendió más? & ¿Por qué?](#schema6)
+7. [¿Qué productos se venden juntos con mayor frecuencia?](#schema7)
 
 <hr>
 
@@ -121,8 +127,125 @@ plt.xticks(months)
 plt.ylabel('Sales in USD ($)')
 plt.xlabel('Month number')
 plt.show()
-plt.savefig("./images/month.png")
 ~~~
-![img](./images/month.png)
-
 Y comprobamos que el mejor mes de ventas es el mes de `diciembre`
+
+<hr>
+
+<a name="schema4"></a>
+
+# 4. ¿Qué ciudad tiene el pedido máximo?
+Primero vamos a obtener las ciudades.
+
+~~~python
+def city(x):
+    return x.split(', ')[1]
+all_data['city']=all_data['Purchase Address'].apply(city)
+all_data.groupby('city')['city'].count()
+~~~
+
+![img](./images/010.png)
+
+Y ahora hacemos un gráfico con las ciudades y las `received orders`
+~~~python
+plt.bar(all_data.groupby('city')['city'].count().index,all_data.groupby('city')['city'].count())
+plt.xticks(rotation='vertical')
+plt.ylabel('received orders')
+plt.xlabel('city names')
+plt.show()
+~~~
+![img](./images/city.png)
+
+Y comprobamos que `San Francisco` es la ciudad con mas ventas.
+
+
+<hr>
+
+<a name="schema5"></a>
+
+# 5. ¿A qué hora debemos mostrar anuncios para maximizar la compra de productos?
+
+Creamos una columna nueva `Hour` con las horas de los pedidos
+~~~python
+all_data['Hour'] = pd.to_datetime(all_data['Order Date']).dt.hour
+~~~
+![img](./images/011.png)
+
+~~~python
+keys=[]
+hour=[]
+for key,hour_df in all_data.groupby('Hour'):
+    keys.append(key)
+    hour.append(len(hour_df))
+~~~
+Donde las keys son las horas y las hour contienen las cantidad de pedidos a esa hora.
+~~~python
+plt.grid()
+plt.plot(keys,hour)
+plt.savefig("./images/k_h.png")
+~~~
+![img](./images/k_h.png)
+
+Donde podemos comprobar que las mejores horas para poner anuncios son sobre las 12 y las 19
+
+
+<hr>
+
+<a name="schema6"></a>
+
+
+# 6. ¿Qué producto se vendió más? & ¿Por qué?
+~~~python
+all_data.groupby('Product')['Quantity Ordered'].sum().plot(kind='bar')
+
+~~~
+![img](./images/product.png)
+
+Precio medio de cada producto
+~~~python
+all_data.groupby('Product')['Price Each'].mean()
+~~~
+![img](./images/012.png)
+
+Creamos un nuevo data y vemos la relación entre el precio y la cantidad de ventas.
+~~~python
+products=all_data.groupby('Product')['Quantity Ordered'].sum().index
+quantity=all_data.groupby('Product')['Quantity Ordered'].sum()
+prices=all_data.groupby('Product')['Price Each'].mean()
+plt.figure(figsize=(40,24))
+fig,ax1 = plt.subplots()
+ax2=ax1.twinx()
+ax1.bar(products, quantity, color='g')
+ax2.plot(products, prices, 'b-')
+ax1.set_xticklabels(products, rotation='vertical', size=8)
+plt.savefig("./images/prices.png")
+~~~
+![img](./images/prices.png)
+
+El producto más vendido son las 'Pilas AAA'. Los productos más vendidos parecen tener una correlación con el precio del producto. Cuanto más barato sea el producto, mayor será la cantidad pedida y viceversa.
+
+
+<hr>
+
+<a name="schema7"></a>
+
+# 7. ¿Qué productos se venden juntos con mayor frecuencia?
+Tenemos que buscar las mismas órdenes
+
+~~~python
+df=all_data[all_data['Order ID'].duplicated(keep=False)]
+~~~
+![img](./images/013.png)
+
+Buscamos los productos dentro de las órdenes
+~~~python
+df['Grouped'] = df.groupby('Order ID')['Product'].transform(lambda x: ','.join(x))
+~~~
+![img](./images/014.png)
+
+Ahora tenemos duplicados las `Order ID`y  `Grouped`
+~~~python
+df2 = df.drop_duplicates(subset=['Order ID'])
+df2['Grouped'].value_counts()[0:5].plot.pie()
+~~~
+![img](./images/grouped.png)
